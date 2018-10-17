@@ -2,25 +2,55 @@
 /*
 * Updates the 'Promotion Planning Calendars for Teams.gsheet' with instructions 
 * and team information from the ' Promotion Planning Calendar for Teams TEMPLATE.gsheet'.
-* It also protects the ranges of the current year's event data.
-*/
+* It also changes the date validation for Col B to 'next year' and protects the ranges 
+* of the current year's event data on each team sheet.
 
-/*
-******************************************************************************************************************************
+***************************************************************************************
 
 Redevelopment Notes from Chad: 
 
-This script does great, but it would be better if the formatting from the 'Instructions' tab on the TEMPLATE could be carried over
-to the destination sheet
+...
 
-******************************************************************************************************************************
+***************************************************************************************
 */
+
+/*
+* Will change the date validation for Col B in the Template to {next year}.
+*/
+function setDateValidation () {
+  var sheet = SpreadsheetApp.openById("1dXQK6zHEjAwwk9bQibSsQzlpgFRNPtJ_HJY414bAZKA").getSheetByName('TEAM');
+  var this_year = new Date().getYear();
+  var next_year = new Date().getYear() + 1;
+  // Change existing data validation rules that require a date in this_year to require a date in next_year.
+  var oldDates = [new Date(this_year,0,1), new Date(this_year,11,31)];
+  var newDates = [new Date(next_year,0,1), new Date(next_year,11,31)];    
+  var range = sheet.getRange("B3:B50");
+  var rules = range.getDataValidations();
+  for (var i = 0; i < rules.length; i++) {
+    for (var i = 0; i < rules.length; i++) {
+      for (var j = 0; j < rules[i].length; j++) {
+        var rule = rules[i][j];
+        if (rule != null) {
+          var criteria = rule.getCriteriaType();
+          var args = rule.getCriteriaValues();
+          if (criteria == SpreadsheetApp.DataValidationCriteria.DATE_BETWEEN
+              && args[0].getTime() == oldDates[0].getTime()
+          && args[1].getTime() == oldDates[1].getTime()) {
+            // Create a builder from the existing rule, then change the dates.
+            rules[i][j] = rule.copy().withCriteria(criteria, newDates).build();
+          }
+        }
+      }
+    }
+  }
+  range.setDataValidations(rules);
+  updateInstructionsAndPromotionPlanningCalendarsForTeams()
+}
 
 function updateInstructionsAndPromotionPlanningCalendarsForTeams() {
   
   /*
-  * Will verify manual execution is intentional and not too  
-  * early.
+  * Will verify manual execution is intentional and not too early.
   */ 
   var title = 'Warning';
   var prompt = Utilities.formatString(
@@ -55,8 +85,8 @@ Do you wish to proceed?\
   //    });
   
   var PromotionPlanningCalendarsForTeamsTEMPLATE_id = "1dXQK6zHEjAwwk9bQibSsQzlpgFRNPtJ_HJY414bAZKA"; // " Promotion Planning Calendars for Teams TEMPLATE.gsheet
-  var PromotionPlanningCalendarForTeams_id = '1JSyVOmWqqnJrAfs_eBHd2MW1SdtZImzJdRJAsW0aPA4'; // "Promotion Planning Calendars for Teams - Test Copy.gsheet"
-  var StaffSheet_id = '1HEOWmNPo32uhR6N1XkviYiDM7KdAnaYycKDH9fz3OXE'; // "Staff Data.gsheet"
+  var PromotionPlanningCalendarForTeams_id = '1ZlB3EOL4smtkNhpsvjUxSRI1cXBPuuucbOil49uL2TQ'; // "Promotion Planning Calendars for Teams - Test Copy.gsheet"
+  var StaffSheet_id = '1iiFmdqUd-CoWtUjZxVgGcNb74dPVh-l5kuU_G5mmiHI'; // "Staff Data.gsheet"
   
   var PromotionPlanningCalendarsForTeamsTEMPLATE = SpreadsheetApp.openById(PromotionPlanningCalendarsForTeamsTEMPLATE_id);
   var PromotionPlanningCalendarForTeams = SpreadsheetApp.openById(PromotionPlanningCalendarForTeams_id);
@@ -65,20 +95,37 @@ Do you wish to proceed?\
   /*
   * Will copy the information from the template
   * Replace the date variables and save the instructions with the
-  * new date information on the respected sheet.
+  * new date information on the target sheet.
   */
-  var instructionsTemplate = PromotionPlanningCalendarsForTeamsTEMPLATE.getSheetByName('Instructions').getRange("C4");
-  var instructions = PromotionPlanningCalendarForTeams.getSheetByName('Instructions').getRange("C4");
+  var instructionsTemplate_F4 = PromotionPlanningCalendarsForTeamsTEMPLATE.getSheetByName('Instructions').getRange("F4");
+  var instructionsTemplate_D7 = PromotionPlanningCalendarsForTeamsTEMPLATE.getSheetByName('Instructions').getRange("D7");
+  var instructionsTemplate_D8 = PromotionPlanningCalendarsForTeamsTEMPLATE.getSheetByName('Instructions').getRange("D8");
+  var instructionsTemplate_D9 = PromotionPlanningCalendarsForTeamsTEMPLATE.getSheetByName('Instructions').getRange("D9");
   
-  var firstFridayOfSeptember = getFirstFridayOfSeptember_();
+  var instructions_F4 = PromotionPlanningCalendarForTeams.getSheetByName('Instructions').getRange("F4");
+  var instructions_D7 = PromotionPlanningCalendarForTeams.getSheetByName('Instructions').getRange("D7");
+  var instructions_D8 = PromotionPlanningCalendarForTeams.getSheetByName('Instructions').getRange("D8");
+  var instructions_D9 = PromotionPlanningCalendarForTeams.getSheetByName('Instructions').getRange("D9");
+  
+  var teamLeadersContributionDueDate = getFirstWeek_();
   
   var currentYear = new Date().getFullYear();
-  var instructionDetails = instructionsTemplate.getValue().toString();
-  instructionDetails = instructionDetails.replace(/FIRST_FRIDAY_OF_SEPTEMBER_OF_THE_CURRENT_YEAR/g, firstFridayOfSeptember)
-  .replace(/CURRENT_YEAR/g, currentYear)
-  .replace(/UPCOMING_YEAR/g, currentYear + 1);
+  var instructionDetails_F4 = instructionsTemplate_F4.getValue().toString();
+  instructionDetails_F4 = instructionDetails_F4.replace(/TEAM_LEADERS_CONTRIBUTION_DUE_DATE/g, teamLeadersContributionDueDate)
   
-  instructions.setValue(instructionDetails);
+  var instructionDetails_D7 = instructionsTemplate_D7.getValue().toString();
+  instructionDetails_D7 = instructionDetails_D7.replace(/UPCOMING_YEAR/g, currentYear + 1);
+  
+  var instructionDetails_D8 = instructionsTemplate_D8.getValue().toString();
+  instructionDetails_D8 = instructionDetails_D8.replace(/UPCOMING_YEAR/g, currentYear + 1);
+  
+  var instructionDetails_D9 = instructionsTemplate_D9.getValue().toString();
+  instructionDetails_D9 = instructionDetails_D9.replace(/UPCOMING_YEAR/g, currentYear + 1);
+  
+  instructions_F4.setValue(instructionDetails_F4);
+  instructions_D7.setValue(instructionDetails_D7);
+  instructions_D8.setValue(instructionDetails_D8);
+  instructions_D9.setValue(instructionDetails_D9);
   Logger.log("Instructions have been updated");
   
   // Get a list of team names 
@@ -150,9 +197,9 @@ Do you wish to proceed?\
     upcomingPromotionLevel.setValue( upcomingPromotionLevel.getValue().toString().replace(/CURRENT_YEAR/g, currentYear) );
     currentDateYear.setValue( currentDateYear.getValue().toString().replace(/CURRENT_YEAR/g, currentYear) );
     console.log("Team Sheets have been updated");
-  };
+  }
   protectRanges();
-};
+}
 
 function protectRanges() {
   
@@ -177,31 +224,76 @@ function protectRanges() {
     var numberOfRows = sheet.getLastRow() - 2;
     var numberOfColumns = 3;
     var range = sheet.getRange(startRow, startColumn, numberOfRows, numberOfColumns);
+    var border_range = sheet.getRange(startRow, 1, numberOfRows, 6);
+    border_range.setBorder(null, null, true, null, null, null, '#163c47', SpreadsheetApp.BorderStyle.DASHED);  // top left bottom right vert horz color type
     var protection = range.protect().setDescription(sheet.getName() + ' ' + (currentYear) + ' ' + 'Events');
     
     // Ensure the current user is an editor before removing others. Otherwise, if the user's edit
     // permission comes from a group, the script throws an exception upon removing the group
-    protection.addEditor(me);
     protection.removeEditors(protection.getEditors());
     if (protection.canDomainEdit()) {
       protection.setDomainEdit(false);
     }
   }
-} // protectRanges()  
+} 
 
-function getFirstFridayOfSeptember_() {
-  var year = new Date().getFullYear();
-  var date = new Date("September 1 " + year);
-  var target = 5; // Friday
-  if(target != 5) {
-    var days = ( 30 - ( target - date.getDay() ) % 7 );
-    var time = date.getTime() - ( days * 86400000 );
-    
-    // setting full timestamp here
-    date.setTime(time);
+
+
+
+function getWeeksInMonth_(month, year){
+  var year = new Date().getYear();
+  var month = 9;
+  var weeks_array=[],
+      firstDate=new Date(year, month, 1),
+      lastDate=new Date(year, month+1, 0), 
+      numDays= lastDate.getDate();
+  
+  var start=1;
+  var end=7-firstDate.getDay();
+  while(start<=numDays){
+    weeks_array.push({start:start,end:end});
+    start = end + 1;
+    end = end + 7;
+    end = start === 1 && end === 8 ? 1 : end;
+    if(end>numDays)
+      end=numDays;    
   }
-  var options = { weekday: 'long', month: 'long', day: 'numeric' };
-  teamLeadersContributionDueDate = date.toLocaleString('en-us', options);
-  teamLeadersContributionDueDate = 'Friday, ' + teamLeadersContributionDueDate.split(',')[0];
-  return teamLeadersContributionDueDate;
+  return weeks_array;
 }
+
+function nth_(ordinand) {
+  if(ordinand>3 && ordinand<21) return 'th'; 
+  switch (ordinand % 10) {
+    case 1:  return "st";
+    case 2:  return "nd";
+    case 3:  return "rd";
+    default: return "th";
+  }
+} 
+
+function getFirstWeek_() {
+  var weeks_array = getWeeksInMonth_();
+  var year = new Date().getYear();
+  var month = 9;
+  
+  var m_names = ['January', 'February', 'March', 
+                 'April', 'May', 'June', 'July', 
+                 'August', 'September', 'October', 'November', 'December'];
+  d = new Date(year, month, 1, 0, 0, 0, 0);
+  var n = m_names[d.getMonth()];
+  
+  for (var weeks_array_index = 0; weeks_array_index < weeks_array.length; weeks_array_index++) {
+    var current_start = weeks_array[weeks_array_index].start; 
+    var current_end = weeks_array[weeks_array_index].end;
+    var first_Friday = current_end - 1;
+    var teamLeadersContributionDueDate = "Friday, " + n + " " + first_Friday + nth_(current_end);
+    
+    if (current_end - current_start == 6 ) { 
+            
+     
+       Logger.log("Friday, " + n + " " + first_Friday + nth_(current_end));
+       return teamLeadersContributionDueDate;
+    }
+  }
+}
+
